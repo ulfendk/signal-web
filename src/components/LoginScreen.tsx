@@ -29,48 +29,57 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
       try {
         setStatusMessage('Connecting to Signal servers...')
         
-        const USE_REAL_IMPLEMENTATION = true; // Enabled for production - attempts real Signal server connection
+        const USE_REAL_IMPLEMENTATION = false; // Disabled - Signal servers don't support direct web connections
         
-        // Use the real implementation that connects to Signal servers
-        await generateLinkingURI({
-          onProgress: (message) => {
-            console.log('[Provisioning]', message)
-            setStatusMessage(message)
-          },
-          onQRCode: (uri) => {
-            console.log('[QR Code Ready]', uri)
-            setLinkingURI(uri)
-            setIsLoading(false)
-            setStatusMessage('QR code ready - scan with your Signal mobile app')
-          },
-          onSuccess: (credentials) => {
-            console.log('[Provisioning Success]', credentials)
-            setStatusMessage(`Device successfully linked! Device ID: ${credentials.deviceId}`)
-            setIsProvisioned(true)
-            // Auto-login after successful provisioning
-            setTimeout(() => onLogin(), 2000)
-          },
-          onError: (error) => {
-            console.error('[Provisioning Error]', error)
-            setErrorMessage(error.message)
-            setStatusMessage('Failed to connect to Signal servers')
-            setIsLoading(false)
-          }
-        }, USE_REAL_IMPLEMENTATION)
-        
-        // URI is set via onQRCode callback
+        if (USE_REAL_IMPLEMENTATION) {
+          // Use the real implementation that connects to Signal servers
+          await generateLinkingURI({
+            onProgress: (message) => {
+              console.log('[Provisioning]', message)
+              setStatusMessage(message)
+            },
+            onQRCode: (uri) => {
+              console.log('[QR Code Ready]', uri)
+              setLinkingURI(uri)
+              setIsLoading(false)
+              setStatusMessage('QR code ready - scan with your Signal mobile app')
+            },
+            onSuccess: (credentials) => {
+              console.log('[Provisioning Success]', credentials)
+              setStatusMessage(`Device successfully linked! Device ID: ${credentials.deviceId}`)
+              setIsProvisioned(true)
+              // Auto-login after successful provisioning
+              setTimeout(() => onLogin(), 2000)
+            },
+            onError: (error) => {
+              console.error('[Provisioning Error]', error)
+              setErrorMessage(error.message)
+              setStatusMessage('Cannot connect to Signal servers - using demo mode')
+              setIsLoading(false)
+            }
+          }, false)
+        } else {
+          // Use demo/mock mode directly
+          setStatusMessage('Generating demo QR code...')
+          const fallbackUri = await generateLinkingURI(undefined, true)
+          setLinkingURI(fallbackUri)
+          setIsLoading(false)
+          setStatusMessage('Demo QR code ready (for demonstration purposes only)')
+          setErrorMessage('Note: This is a demo. Real Signal server connections are not supported in web browsers.')
+        }
         
       } catch (error) {
         console.error('Failed to generate linking URI:', error)
         const errorMsg = error instanceof Error ? error.message : 'Unknown error'
         setErrorMessage(errorMsg)
-        setStatusMessage('Connection failed - using fallback mode')
+        setStatusMessage('Error generating QR code')
         setIsLoading(false)
         
-        // Fallback to mock mode if real connection fails
+        // Fallback to mock mode if everything fails
         try {
           const fallbackUri = await generateLinkingURI(undefined, true)
           setLinkingURI(fallbackUri)
+          setStatusMessage('Fallback QR code generated')
         } catch (fallbackError) {
           console.error('Fallback also failed:', fallbackError)
         }
@@ -159,8 +168,8 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
         
         <div className="footer">
           <p>
-            This implementation connects to real Signal servers for device linking.
-            {errorMessage && ' (Currently in fallback mode)'}
+            This is a demo implementation. Real Signal server connections are not supported in web browsers.
+            {errorMessage && ' Click "Demo Login" below to explore the interface.'}
           </p>
         </div>
       </div>
