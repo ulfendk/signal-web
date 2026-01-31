@@ -22,8 +22,11 @@ export async function generateLinkingURI(): Promise<string> {
   const uuid = generateUUID()
   const publicKey = generatePublicKey()
   
+  // Convert UUID to base64 format (Signal uses base64-encoded UUIDs)
+  const base64Uuid = uuidToBase64(uuid)
+  
   // URL-encode the parameters (especially important for base64 values with special chars)
-  const encodedUuid = encodeURIComponent(uuid)
+  const encodedUuid = encodeURIComponent(base64Uuid)
   const encodedPublicKey = encodeURIComponent(publicKey)
   
   // Signal linking URI format
@@ -39,6 +42,18 @@ function generateUUID(): string {
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
     return v.toString(16)
   })
+}
+
+// Convert UUID to base64 format (Signal uses base64-encoded UUIDs)
+function uuidToBase64(uuid: string): string {
+  // Remove hyphens from UUID
+  const hex = uuid.replace(/-/g, '')
+  
+  // Convert hex string to bytes (16 bytes for UUID)
+  const bytes = new Uint8Array(hex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)))
+  
+  // Convert bytes to base64
+  return btoa(String.fromCharCode(...Array.from(bytes)))
 }
 
 // Generate a mock public key (base64 encoded)
