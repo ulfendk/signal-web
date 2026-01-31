@@ -29,7 +29,7 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
       try {
         setStatusMessage('Connecting to Signal servers...')
         
-        const USE_REAL_IMPLEMENTATION = false; // Set to true to attempt real server connection
+        const USE_REAL_IMPLEMENTATION = true; // Enabled for production - attempts real Signal server connection
         
         // Use the real implementation that connects to Signal servers
         await generateLinkingURI({
