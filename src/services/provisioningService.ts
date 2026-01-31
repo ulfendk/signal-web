@@ -112,11 +112,11 @@ class ProvisioningCipher {
     const salt = new Uint8Array(32);
     crypto.getRandomValues(salt);
 
-    const info = new TextEncoder().encode('TextSecure Provisioning Message');
+    const label = new TextEncoder().encode('TextSecure Provisioning Message');
     
     // Use libsignal's hkdf function which uses the signal-wasm backend
-    // Signature: hkdf(outputLength, keyMaterial, label, salt)
-    const derivedBits = hkdf(64, sharedSecret, info, salt);
+    // API signature: hkdf(outputLength, keyMaterial, label, salt)
+    const derivedBits = hkdf(64, sharedSecret, label, salt);
 
     return {
       encryptionKey: derivedBits.slice(0, 32),    // First 32 bytes

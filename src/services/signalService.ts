@@ -69,6 +69,8 @@ function uuidToBase64(uuid: string): string {
 }
 
 // Generate a mock public key (base64 encoded) using libsignal
+// Note: This is for demo/mock mode only. The private key is intentionally discarded
+// since this is only used to generate a placeholder public key for testing.
 function generatePublicKey(): string {
   // Use libsignal to generate a proper EC key pair (signal-wasm backend)
   const privateKey = PrivateKey.generate();
