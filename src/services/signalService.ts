@@ -3,14 +3,14 @@
  * 
  * This service handles the Signal protocol operations including:
  * - Device linking via QR code
- * - Message encryption/decryption using @signalapp/libsignal-client (signal-wasm)
+ * - Message encryption/decryption using Web Crypto API
  * - WebSocket connections (direct, no relay)
  * 
  * This implementation connects to real Signal servers for device provisioning.
  * No relay is used - direct WebSocket connections to Signal servers.
  */
 
-import { PrivateKey } from '@signalapp/libsignal-client';
+import { generateKeyPairWrapper } from '../utils/crypto';
 import { generateLinkingURIWithProvisioning, ProvisioningCallbacks } from './provisioningService';
 
 /**
@@ -27,7 +27,7 @@ export async function generateLinkingURI(
   if (useMockMode) {
     // Mock implementation for testing/demo
     const uuid = generateUUID()
-    const publicKey = generatePublicKey()
+    const publicKey = await generatePublicKey()
     
     const base64Uuid = uuidToBase64(uuid)
     const encodedUuid = encodeURIComponent(base64Uuid)
@@ -68,14 +68,13 @@ function uuidToBase64(uuid: string): string {
   return btoa(String.fromCharCode(...Array.from(bytes)))
 }
 
-// Generate a mock public key (base64 encoded) using libsignal
+// Generate a mock public key (base64 encoded) using Web Crypto API
 // Note: This is for demo/mock mode only. The private key is intentionally discarded
 // since this is only used to generate a placeholder public key for testing.
-function generatePublicKey(): string {
-  // Use libsignal to generate a proper EC key pair (signal-wasm backend)
-  const privateKey = PrivateKey.generate();
-  const publicKey = privateKey.getPublicKey();
-  const publicKeyBytes = publicKey.serialize();
+async function generatePublicKey(): Promise<string> {
+  // Use Web Crypto API to generate a proper EC key pair (browser-compatible)
+  const { publicKey } = await generateKeyPairWrapper();
+  const publicKeyBytes = await publicKey.serialize();
   return btoa(String.fromCharCode(...Array.from(publicKeyBytes)))
 }
 
@@ -117,7 +116,7 @@ export class SignalWebSocket {
 export class SignalProtocol {
   /**
    * Encrypt a message using the Signal Protocol
-   * Uses @signalapp/libsignal-client with signal-wasm backend
+   * Uses Web Crypto API
    */
   static async encryptMessage(message: string, recipientId: string): Promise<ArrayBuffer> {
     // Simplified encryption for demo
@@ -134,7 +133,7 @@ export class SignalProtocol {
 
   /**
    * Decrypt a message using the Signal Protocol
-   * Uses @signalapp/libsignal-client with signal-wasm backend
+   * Uses Web Crypto API
    */
   static async decryptMessage(encryptedData: ArrayBuffer, senderId: string): Promise<string> {
     // Simplified decryption for demo
