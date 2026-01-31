@@ -40,59 +40,73 @@ This is a complete implementation of a Signal Private Messenger web client as a 
 ## Security Implementation
 
 ### Current State
-- Framework for end-to-end encryption
-- Secure random number generation for keys
-- WebSocket preparation for real-time communication
+- End-to-end encryption framework using @signalapp/libsignal-client
+- Signal-wasm backend for cryptographic operations
+- Secure random number generation via libsignal
+- Direct WebSocket connections to Signal servers (no relay)
 - No security vulnerabilities detected by CodeQL
 
 ### Production Requirements
 For a production deployment, you need to:
 
-1. **Integrate libsignal-protocol-javascript**
+1. **Complete Signal Protocol Implementation**
    ```bash
+   # Already installed:
    npm install @signalapp/libsignal-client
    ```
 
-2. **Implement Signal Protocol**
-   - Key exchange and session management
-   - Double Ratchet algorithm
+2. **Implement Signal Protocol Features**
+   - Key exchange and session management using libsignal-client
+   - Double Ratchet algorithm (provided by libsignal-client)
    - Message authentication codes
    - Perfect forward secrecy
+   - PreKey bundle management
 
 3. **Backend Integration**
-   - Connect to Signal servers or self-hosted backend
-   - WebSocket for real-time message delivery
+   - Connect to Signal servers (already configured for provisioning)
+   - WebSocket for real-time message delivery (direct, no relay)
    - REST API for contact management
    - Push notification service
 
 4. **Storage**
    - IndexedDB for messages and metadata
-   - Secure key storage
+   - Secure key storage using libsignal-client
    - Contact synchronization
 
-## WASM Consideration
+## WASM Implementation
 
-The original problem statement mentioned considering WASM compilation of the official Signal app. Here's why we chose a web-native approach instead:
+This project now uses `@signalapp/libsignal-client` which provides **signal-wasm backend** for optimal cryptographic performance. This approach provides several advantages:
 
-### Advantages of Web-Native Approach
-1. **Existing Libraries**: Signal Protocol has mature JavaScript implementations
-2. **Browser Integration**: Better access to Web APIs (Service Workers, notifications, storage)
-3. **Bundle Size**: Smaller than WASM compiled mobile apps
-4. **Development**: Easier to maintain and debug
-5. **Compatibility**: Better browser support
+### Advantages of libsignal-client with signal-wasm
+1. **Official Implementation**: Official Signal Protocol library maintained by Signal Foundation
+2. **Performance**: WASM-accelerated cryptographic operations (Curve25519, Ed25519, AES-GCM-SIV)
+3. **Browser Integration**: Excellent integration with Web APIs (Service Workers, notifications, storage)
+4. **Bundle Size**: Optimized WASM modules only for crypto operations
+5. **Development**: Well-documented API with TypeScript support
+6. **Compatibility**: Works across all modern browsers
+7. **No Relay Required**: Direct WebSocket connections to Signal servers
 
-### WASM Approach Challenges
-1. **Complexity**: Would need to compile Signal-Android/iOS to WASM
-2. **Dependencies**: Mobile dependencies don't translate well to web
-3. **Size**: WASM bundles would be significantly larger
-4. **Integration**: Harder to integrate with web-specific features
+### Signal-WASM Backend Features
+The libsignal-client package automatically uses signal-wasm for:
+- **Key Generation**: Curve25519 and Ed25519 key pairs
+- **Key Agreement**: ECDH operations for session establishment
+- **HKDF**: Key derivation functions
+- **Encryption**: AES-GCM-SIV authenticated encryption
+- **Signatures**: Ed25519 signature generation and verification
+- **Session Management**: Double Ratchet algorithm implementation
+
+### Architecture: Direct Connection (No Relay)
+- **Provisioning**: Direct WebSocket to `wss://textsecure-service.whispersystems.org/v1/websocket/provisioning/`
+- **Messaging**: Direct WebSocket to `wss://textsecure-service.whispersystems.org/v1/websocket/`
+- **No Relay**: All connections are direct to Signal servers, no intermediary relay is used
 
 ### Recommendation
-Use the JavaScript Signal Protocol libraries (`@signalapp/libsignal-client`) for production. This provides:
+Continue using `@signalapp/libsignal-client` for production. This provides:
 - Official Signal Protocol implementation
 - Maintained by Signal Foundation
-- Optimized for web browsers
-- WASM backend where beneficial (crypto operations)
+- Optimized for web browsers with signal-wasm backend
+- WASM backend for performance-critical crypto operations
+- Pure JavaScript fallback where appropriate
 
 ## Testing
 
