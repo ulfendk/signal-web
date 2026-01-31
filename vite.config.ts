@@ -1,11 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
   base: '/signal-web/',
   plugins: [
     react(),
+    nodePolyfills({
+      // Enable polyfills for Node.js built-in modules required by @signalapp/libsignal-client
+      include: ['buffer', 'process', 'util', 'crypto'],
+      globals: {
+        Buffer: true,
+        process: true,
+      },
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
@@ -49,5 +58,14 @@ export default defineConfig({
   ],
   server: {
     port: 3000
+  },
+  resolve: {
+    alias: {
+      // Help Vite resolve libsignal-client's native modules
+      './Native.js': '@signalapp/libsignal-client/dist/Native.js'
+    }
+  },
+  optimizeDeps: {
+    exclude: ['@signalapp/libsignal-client']
   }
 })

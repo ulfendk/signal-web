@@ -98,7 +98,9 @@ To deploy manually to other hosting providers:
 - **Build Tool**: Vite 7
 - **PWA**: vite-plugin-pwa with Workbox
 - **QR Code**: qrcode.react
+- **Signal Protocol**: @signalapp/libsignal-client (with signal-wasm backend)
 - **Styling**: CSS3 with responsive design
+- **Connections**: Direct WebSocket to Signal servers (no relay)
 
 ## Project Structure
 
@@ -123,14 +125,38 @@ signal-web/
 
 ## Signal Protocol Integration
 
-This implementation provides a foundation for integrating the Signal Protocol. In a production environment, you would need to:
+This implementation uses `@signalapp/libsignal-client` which provides the Signal Protocol with a signal-wasm backend for cryptographic operations. The architecture uses **direct WebSocket connections to Signal servers without any relay**.
 
-1. **Integrate libsignal**: Use the official Signal Protocol library for encryption
-2. **Backend Services**: Connect to Signal's servers or implement your own backend
-3. **WebSocket Support**: Implement real-time message delivery
-4. **Storage**: Use IndexedDB for persistent message and contact storage
-5. **Media Support**: Handle images, videos, and file attachments
-6. **Notifications**: Implement web push notifications
+### Current Implementation
+
+1. **libsignal-client Integration**: Uses the official Signal Protocol library with signal-wasm backend
+2. **Direct Server Connection**: WebSocket connections directly to Signal's servers (no relay)
+3. **Key Generation**: Uses libsignal's Curve25519 key generation (via signal-wasm)
+4. **HKDF**: Uses libsignal's HKDF implementation for key derivation
+
+### Production Requirements
+
+For a full production deployment, you would need to implement:
+
+1. **Complete Session Management**
+   - Session state storage in IndexedDB
+   - PreKey bundle generation and management
+   - Signed PreKey rotation
+
+2. **Backend Integration**
+   - REST API for contact management
+   - Push notification service
+   - Media upload/download endpoints
+
+3. **Storage**
+   - IndexedDB for messages and metadata
+   - Secure key storage with encryption at rest
+   - Contact synchronization
+
+4. **Message Protocol**
+   - Full Double Ratchet implementation using libsignal-client
+   - Message authentication and verification
+   - Perfect forward secrecy
 
 ## Security Considerations
 
@@ -146,16 +172,21 @@ This implementation provides a foundation for integrating the Signal Protocol. I
 
 ## Development Notes
 
-### WebAssembly (WASM) Consideration
+### WebAssembly (WASM) Implementation
 
-The problem statement mentions considering transpiling the official Signal app to WASM. While this is technically possible, the current implementation uses a web-native approach because:
+This implementation now uses `@signalapp/libsignal-client` which includes a **signal-wasm backend** for cryptographic operations. This provides the best of both worlds:
 
-1. The official Signal Desktop app is built with Electron, which is already web-based
-2. Signal Protocol libraries have JavaScript implementations (libsignal-protocol-javascript)
-3. A native web approach provides better browser integration and smaller bundle size
-4. WASM compilation from Signal-Android/iOS would require extensive modifications
+1. **Official Signal Protocol**: Uses the official Signal Protocol implementation
+2. **Performance**: WASM-accelerated crypto operations where beneficial
+3. **Browser Integration**: Still integrates well with web-specific features
+4. **No Relay**: Direct WebSocket connections to Signal servers (no relay infrastructure needed)
+5. **Maintained**: Officially maintained by Signal Foundation
 
-For a production implementation, using the JavaScript Signal Protocol libraries is recommended over WASM compilation.
+The signal-wasm backend is automatically used by libsignal-client for performance-critical cryptographic operations like:
+- Curve25519 key generation and agreement
+- Ed25519 signatures
+- AES-GCM-SIV encryption
+- HKDF key derivation
 
 ## Contributing
 

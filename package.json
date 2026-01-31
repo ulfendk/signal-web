@@ -26,10 +26,12 @@
     "sharp": "^0.34.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
+    "vite-plugin-node-polyfills": "^0.25.0",
     "vite-plugin-pwa": "^1.2.0",
     "workbox-window": "^7.4.0"
   },
   "dependencies": {
+    "@signalapp/libsignal-client": "^0.86.16",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
