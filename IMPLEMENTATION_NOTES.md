@@ -116,6 +116,17 @@ Use the JavaScript Signal Protocol libraries (`@signalapp/libsignal-client`) for
 
 ## Deployment
 
+### Automated Deployment to GitHub Pages
+
+The project includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically deploys to GitHub Pages on every push to the `main` branch:
+
+- **Trigger**: Push to `main` branch
+- **Build**: Runs `npm ci` and `npm run build`
+- **Deploy**: Uploads artifacts and deploys to GitHub Pages
+- **URL**: https://ulfendk.github.io/signal-web/
+
+The Vite configuration includes `base: '/signal-web/'` to ensure assets load correctly on GitHub Pages.
+
 ### Building for Production
 ```bash
 npm run build
@@ -128,8 +139,8 @@ Outputs to `dist/` directory with:
 - Static assets
 
 ### Hosting Recommendations
-1. **Vercel/Netlify**: Easy deployment with automatic HTTPS
-2. **GitHub Pages**: Free hosting for static sites
+1. **GitHub Pages**: Automated deployment (current setup)
+2. **Vercel/Netlify**: Easy deployment with automatic HTTPS
 3. **Self-hosted**: Nginx/Apache with SSL certificate
 
 ### Required Headers

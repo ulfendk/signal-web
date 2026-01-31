@@ -2,6 +2,8 @@
 
 A Progressive Web App (PWA) implementation of the Signal Private Messenger for web browsers. This client supports QR code login for device linking, similar to Signal on iPad.
 
+🚀 **[Live Demo](https://ulfendk.github.io/signal-web/)** - Try the app on GitHub Pages
+
 ## Features
 
 - 🔐 **End-to-End Encryption**: All messages are encrypted using the Signal Protocol
@@ -53,6 +55,18 @@ npm run preview
 ```
 
 The build output will be in the `dist` directory, ready for deployment.
+
+## Deployment
+
+This project is configured for automatic deployment to GitHub Pages. When changes are merged to the `main` branch:
+
+1. GitHub Actions automatically builds the project
+2. The built files are deployed to GitHub Pages
+3. The site becomes available at `https://ulfendk.github.io/signal-web/`
+
+### Manual Deployment
+
+To deploy manually to other hosting providers:
 
 ## How to Use
 
