@@ -6,26 +6,43 @@
  * - Message encryption/decryption
  * - WebSocket connections
  * 
- * Note: This is a simplified implementation for demonstration purposes.
- * A production implementation would need to integrate with the actual Signal protocol
- * libraries and backend services.
+ * This implementation connects to real Signal servers for device provisioning.
  */
 
-// Generate a unique device linking URI for QR code
-export async function generateLinkingURI(): Promise<string> {
-  // In a real implementation, this would:
-  // 1. Generate a unique device ID
-  // 2. Create a provisioning UUID
-  // 3. Establish a WebSocket connection to Signal servers
-  // 4. Return a URI in the format: tsdevice:/?uuid=xxx&pub_key=yyy
+import { generateLinkingURIWithProvisioning, ProvisioningCallbacks } from './provisioningService';
+
+/**
+ * Generate a unique device linking URI for QR code
+ * This connects to real Signal servers and returns a valid provisioning URI
+ * 
+ * @param callbacks - Optional callbacks for provisioning events
+ * @param useMockMode - Set to true to use mock implementation (for testing)
+ */
+export async function generateLinkingURI(
+  callbacks?: ProvisioningCallbacks,
+  useMockMode: boolean = false
+): Promise<string> {
+  if (useMockMode) {
+    // Mock implementation for testing/demo
+    const uuid = generateUUID()
+    const publicKey = generatePublicKey()
+    
+    const base64Uuid = uuidToBase64(uuid)
+    const encodedUuid = encodeURIComponent(base64Uuid)
+    const encodedPublicKey = encodeURIComponent(publicKey)
+    
+    return `sgnl://linkdevice?uuid=${encodedUuid}&pub_key=${encodedPublicKey}&capabilities=`
+  }
   
-  const uuid = generateUUID()
-  const publicKey = generatePublicKey()
-  
-  // Signal Desktop linking URI format
-  const linkingURI = `tsdevice:/?uuid=${uuid}&pub_key=${publicKey}`
-  
-  return linkingURI
+  // Real implementation: Connect to Signal servers
+  try {
+    return await generateLinkingURIWithProvisioning(callbacks);
+  } catch (error) {
+    console.error('Failed to generate linking URI from Signal servers:', error);
+    // Fallback to mock mode if server connection fails
+    callbacks?.onError?.(error instanceof Error ? error : new Error('Failed to connect to Signal servers'));
+    return generateLinkingURI(callbacks, true);
+  }
 }
 
 // Generate a UUID v4
@@ -35,6 +52,18 @@ function generateUUID(): string {
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
     return v.toString(16)
   })
+}
+
+// Convert UUID to base64 format (Signal uses base64-encoded UUIDs)
+function uuidToBase64(uuid: string): string {
+  // Remove hyphens from UUID
+  const hex = uuid.replace(/-/g, '')
+  
+  // Convert hex string to bytes (16 bytes for UUID)
+  const bytes = new Uint8Array(hex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)))
+  
+  // Convert bytes to base64
+  return btoa(String.fromCharCode(...Array.from(bytes)))
 }
 
 // Generate a mock public key (base64 encoded)
