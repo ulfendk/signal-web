@@ -40,9 +40,9 @@ This is a complete implementation of a Signal Private Messenger web client as a 
 ## Security Implementation
 
 ### Current State
-- End-to-end encryption framework using @signalapp/libsignal-client
-- Signal-wasm backend for cryptographic operations
-- Secure random number generation via libsignal
+- Browser-compatible cryptographic operations using Web Crypto API
+- ECDH key exchange using P-256 curve
+- HKDF key derivation
 - Direct WebSocket connections to Signal servers (no relay)
 - No security vulnerabilities detected by CodeQL
 
@@ -50,63 +50,55 @@ This is a complete implementation of a Signal Private Messenger web client as a 
 For a production deployment, you need to:
 
 1. **Complete Signal Protocol Implementation**
-   ```bash
-   # Already installed:
-   npm install @signalapp/libsignal-client
-   ```
+   - Consider using a WASM-compiled Signal Protocol library if one becomes available
+   - Or implement remaining Signal Protocol features using Web Crypto API primitives
+   - Implement Double Ratchet algorithm
+   - Add message authentication codes
+   - Ensure perfect forward secrecy
+   - Implement PreKey bundle management
 
-2. **Implement Signal Protocol Features**
-   - Key exchange and session management using libsignal-client
-   - Double Ratchet algorithm (provided by libsignal-client)
-   - Message authentication codes
-   - Perfect forward secrecy
-   - PreKey bundle management
-
-3. **Backend Integration**
+2. **Backend Integration**
    - Connect to Signal servers (already configured for provisioning)
    - WebSocket for real-time message delivery (direct, no relay)
    - REST API for contact management
    - Push notification service
 
-4. **Storage**
+3. **Storage**
    - IndexedDB for messages and metadata
-   - Secure key storage using libsignal-client
+   - Secure key storage with encryption at rest
    - Contact synchronization
 
-## WASM Implementation
+## Cryptographic Implementation
 
-This project now uses `@signalapp/libsignal-client` which provides **signal-wasm backend** for optimal cryptographic performance. This approach provides several advantages:
+This project uses the **Web Crypto API** for browser-compatible cryptographic operations. This approach provides several advantages:
 
-### Advantages of libsignal-client with signal-wasm
-1. **Official Implementation**: Official Signal Protocol library maintained by Signal Foundation
-2. **Performance**: WASM-accelerated cryptographic operations (Curve25519, Ed25519, AES-GCM-SIV)
-3. **Browser Integration**: Excellent integration with Web APIs (Service Workers, notifications, storage)
-4. **Bundle Size**: Optimized WASM modules only for crypto operations
-5. **Development**: Well-documented API with TypeScript support
-6. **Compatibility**: Works across all modern browsers
-7. **No Relay Required**: Direct WebSocket connections to Signal servers
+### Advantages of Web Crypto API
+1. **Native Browser Support**: Built into all modern browsers, no external dependencies
+2. **Performance**: Hardware-accelerated cryptographic operations
+3. **Browser Compatibility**: Works across all modern browsers without WASM
+4. **Bundle Size**: No additional libraries needed, resulting in smaller bundle size
+5. **Security**: Cryptographic operations run in secure context
+6. **No Build Complexity**: No need for WASM compilation or native modules
 
-### Signal-WASM Backend Features
-The libsignal-client package automatically uses signal-wasm for:
-- **Key Generation**: Curve25519 and Ed25519 key pairs
+### Web Crypto API Features Used
+The implementation uses Web Crypto API for:
+- **Key Generation**: ECDH key pairs using P-256 curve
 - **Key Agreement**: ECDH operations for session establishment
-- **HKDF**: Key derivation functions
-- **Encryption**: AES-GCM-SIV authenticated encryption
-- **Signatures**: Ed25519 signature generation and verification
-- **Session Management**: Double Ratchet algorithm implementation
+- **HKDF**: Key derivation functions using HKDF-SHA256
+- **AES Encryption**: AES-CBC for symmetric encryption (can be upgraded to AES-GCM)
 
 ### Architecture: Direct Connection (No Relay)
 - **Provisioning**: Direct WebSocket to `wss://textsecure-service.whispersystems.org/v1/websocket/provisioning/`
 - **Messaging**: Direct WebSocket to `wss://textsecure-service.whispersystems.org/v1/websocket/`
 - **No Relay**: All connections are direct to Signal servers, no intermediary relay is used
 
-### Recommendation
-Continue using `@signalapp/libsignal-client` for production. This provides:
-- Official Signal Protocol implementation
-- Maintained by Signal Foundation
-- Optimized for web browsers with signal-wasm backend
-- WASM backend for performance-critical crypto operations
-- Pure JavaScript fallback where appropriate
+### Note on Signal Protocol
+This is a simplified implementation for educational/demo purposes. The full Signal Protocol includes:
+- Double Ratchet algorithm for forward secrecy
+- PreKey bundles for asynchronous messaging
+- Session state management
+- Group messaging protocols
+- For production use, you would need to implement these features or use an official Signal library when browser-compatible versions become available.
 
 ## Testing
 

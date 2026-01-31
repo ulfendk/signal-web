@@ -98,7 +98,7 @@ To deploy manually to other hosting providers:
 - **Build Tool**: Vite 7
 - **PWA**: vite-plugin-pwa with Workbox
 - **QR Code**: qrcode.react
-- **Signal Protocol**: @signalapp/libsignal-client (with signal-wasm backend)
+- **Cryptography**: Web Crypto API (browser-native)
 - **Styling**: CSS3 with responsive design
 - **Connections**: Direct WebSocket to Signal servers (no relay)
 
@@ -125,14 +125,14 @@ signal-web/
 
 ## Signal Protocol Integration
 
-This implementation uses `@signalapp/libsignal-client` which provides the Signal Protocol with a signal-wasm backend for cryptographic operations. The architecture uses **direct WebSocket connections to Signal servers without any relay**.
+This implementation uses the **Web Crypto API** for cryptographic operations in a browser-compatible way. The architecture uses **direct WebSocket connections to Signal servers without any relay**.
 
 ### Current Implementation
 
-1. **libsignal-client Integration**: Uses the official Signal Protocol library with signal-wasm backend
+1. **Browser-Native Cryptography**: Uses the Web Crypto API for all cryptographic operations
 2. **Direct Server Connection**: WebSocket connections directly to Signal's servers (no relay)
-3. **Key Generation**: Uses libsignal's Curve25519 key generation (via signal-wasm)
-4. **HKDF**: Uses libsignal's HKDF implementation for key derivation
+3. **Key Generation**: Uses Web Crypto API's ECDH with P-256 curve
+4. **HKDF**: Uses Web Crypto API's HKDF implementation for key derivation
 
 ### Production Requirements
 
@@ -154,7 +154,7 @@ For a full production deployment, you would need to implement:
    - Contact synchronization
 
 4. **Message Protocol**
-   - Full Double Ratchet implementation using libsignal-client
+   - Full Double Ratchet implementation (consider using Web Crypto API or waiting for browser-compatible Signal libraries)
    - Message authentication and verification
    - Perfect forward secrecy
 
@@ -174,19 +174,22 @@ For a full production deployment, you would need to implement:
 
 ### WebAssembly (WASM) Implementation
 
-This implementation now uses `@signalapp/libsignal-client` which includes a **signal-wasm backend** for cryptographic operations. This provides the best of both worlds:
+This implementation uses the **Web Crypto API** which is natively supported in all modern browsers. This provides:
 
-1. **Official Signal Protocol**: Uses the official Signal Protocol implementation
-2. **Performance**: WASM-accelerated crypto operations where beneficial
-3. **Browser Integration**: Still integrates well with web-specific features
-4. **No Relay**: Direct WebSocket connections to Signal servers (no relay infrastructure needed)
-5. **Maintained**: Officially maintained by Signal Foundation
+1. **Browser Compatibility**: Works out-of-the-box in all modern browsers
+2. **No External Dependencies**: Uses browser-native cryptographic functions
+3. **Smaller Bundle Size**: No need to include large WASM modules
+4. **Direct WebSocket Connections**: No relay infrastructure needed
 
-The signal-wasm backend is automatically used by libsignal-client for performance-critical cryptographic operations like:
-- Curve25519 key generation and agreement
-- Ed25519 signatures
-- AES-GCM-SIV encryption
+The Web Crypto API is used for:
+- Elliptic Curve key generation and agreement (ECDH with P-256)
 - HKDF key derivation
+- AES encryption/decryption
+
+**Note**: `@signalapp/libsignal-client` is a Node.js-only library that cannot run in browsers. For a production implementation of the full Signal Protocol in browsers, you would need to either:
+1. Wait for an official browser-compatible Signal Protocol library
+2. Use unofficial WASM builds (not recommended for production)
+3. Implement the Signal Protocol using Web Crypto API primitives
 
 ## Contributing
 

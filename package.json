@@ -31,7 +31,6 @@
     "workbox-window": "^7.4.0"
   },
   "dependencies": {
-    "@signalapp/libsignal-client": "^0.86.16",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

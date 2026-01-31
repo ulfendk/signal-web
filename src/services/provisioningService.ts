@@ -7,16 +7,16 @@
  * Steps implemented:
  * 1. Establish WebSocket connection to Signal provisioning servers
  * 2. Request a provisioning UUID from the server
- * 3. Generate a real key pair using @signalapp/libsignal-client (signal-wasm)
+ * 3. Generate a real key pair using Web Crypto API (browser-compatible)
  * 4. Wait for the mobile device to scan and link
  * 5. Exchange encryption keys and device credentials
  * 6. Persist the session for ongoing communication
  * 
- * Note: This uses @signalapp/libsignal-client with signal-wasm backend for cryptographic operations.
+ * Note: This uses Web Crypto API for browser-compatible cryptographic operations.
  * No relay is used - direct WebSocket connection to Signal servers.
  */
 
-import { PrivateKey, PublicKey, hkdf } from '@signalapp/libsignal-client';
+import { PrivateKey, PublicKey, hkdf, generateKeyPairWrapper } from '../utils/crypto';
 
 // Signal server endpoints
 const PROVISIONING_WS_URL = 'wss://textsecure-service.whispersystems.org/v1/websocket/provisioning/';
@@ -56,25 +56,25 @@ interface ProvisioningEnvelope {
 
 /**
  * ProvisioningCipher handles the encryption/decryption during provisioning
- * Step 3: Generate a real key pair using @signalapp/libsignal-client (signal-wasm)
+ * Step 3: Generate a real key pair using Web Crypto API (browser-compatible)
  */
 class ProvisioningCipher {
   private privateKey: PrivateKey | null = null;
   private publicKey: PublicKey | null = null;
 
   async initialize(): Promise<void> {
-    // Generate EC key pair using libsignal (Curve25519)
-    // This uses the signal-wasm backend for cryptographic operations
-    this.privateKey = PrivateKey.generate();
-    this.publicKey = this.privateKey.getPublicKey();
+    // Generate EC key pair using Web Crypto API (browser-compatible)
+    const keyPair = await generateKeyPairWrapper();
+    this.privateKey = keyPair.privateKey;
+    this.publicKey = keyPair.publicKey;
   }
 
-  getPublicKey(): Uint8Array {
+  async getPublicKey(): Promise<Uint8Array> {
     if (!this.publicKey) {
       throw new Error('KeyPair not initialized. Call initialize() first.');
     }
     // Return the serialized public key bytes
-    return this.publicKey.serialize();
+    return await this.publicKey.serialize();
   }
 
   async decrypt(envelope: ProvisioningEnvelope): Promise<any> {
@@ -88,17 +88,17 @@ class ProvisioningCipher {
     }
 
     try {
-      // Import the sender's public key using libsignal
-      const theirPublicKey = PublicKey.deserialize(envelope.publicKey);
+      // Import the sender's public key using Web Crypto API
+      const theirPublicKey = await PublicKey.deserialize(envelope.publicKey);
 
-      // Perform ECDH key agreement using libsignal
-      const sharedSecret = this.privateKey.agree(theirPublicKey);
+      // Perform ECDH key agreement using Web Crypto API
+      const sharedSecret = await this.privateKey.agree(theirPublicKey);
 
-      // Derive encryption keys from shared secret using libsignal's HKDF
-      const hkdf = await this.deriveKeys(sharedSecret);
+      // Derive encryption keys from shared secret using Web Crypto API's HKDF
+      const hkdfResult = await this.deriveKeys(sharedSecret);
 
       // Decrypt the message body
-      const decrypted = await this.aesDecrypt(envelope.body, hkdf.encryptionKey, hkdf.iv);
+      const decrypted = await this.aesDecrypt(envelope.body, hkdfResult.encryptionKey, hkdfResult.iv);
 
       // Parse the decrypted provisioning message
       return this.parseProvisioningMessage(decrypted);
@@ -108,15 +108,15 @@ class ProvisioningCipher {
   }
 
   private async deriveKeys(sharedSecret: Uint8Array): Promise<{ encryptionKey: Uint8Array; iv: Uint8Array; macKey: Uint8Array }> {
-    // Use libsignal's HKDF implementation (signal-wasm backend)
+    // Use Web Crypto API's HKDF implementation
     const salt = new Uint8Array(32);
     crypto.getRandomValues(salt);
 
     const label = new TextEncoder().encode('TextSecure Provisioning Message');
     
-    // Use libsignal's hkdf function which uses the signal-wasm backend
+    // Use our browser-compatible hkdf function from utils/crypto
     // API signature: hkdf(outputLength, keyMaterial, label, salt)
-    const derivedBits = hkdf(64, sharedSecret, label, salt);
+    const derivedBits = await hkdf(64, sharedSecret, label, salt);
 
     return {
       encryptionKey: derivedBits.slice(0, 32),    // First 32 bytes
@@ -268,7 +268,7 @@ class ProvisioningSocket {
         this.callbacks.onProgress?.(`Received provisioning ID: ${this.provisioningId}`);
         
         // Generate QR code URI with the server-provided UUID
-        const publicKey = this.cipher.getPublicKey();
+        const publicKey = await this.cipher.getPublicKey();
         const base64Key = btoa(String.fromCharCode(...publicKey));
         const base64Uuid = this.provisioningId ? btoa(this.provisioningId) : '';
         
