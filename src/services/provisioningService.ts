@@ -224,7 +224,7 @@ class ProvisioningSocket {
     return new Promise((resolve, reject) => {
       // Add a timeout to prevent hanging forever
       const CONNECTION_TIMEOUT = 5000; // 5 seconds
-      let timeoutId: number | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       
       try {
         // Step 1: Establish WebSocket connection to Signal provisioning servers

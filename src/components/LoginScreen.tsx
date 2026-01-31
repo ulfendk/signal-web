@@ -13,6 +13,7 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [statusMessage, setStatusMessage] = useState<string>('Initializing...')
   const [errorMessage, setErrorMessage] = useState<string>('')
+  const [infoMessage, setInfoMessage] = useState<string>('')
   const [isProvisioned, setIsProvisioned] = useState(false)
 
   useEffect(() => {
@@ -57,7 +58,7 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
               setStatusMessage('Cannot connect to Signal servers - using demo mode')
               setIsLoading(false)
             }
-          }, false)
+          }, true)  // Pass true to use real implementation
         } else {
           // Use demo/mock mode directly
           setStatusMessage('Generating demo QR code...')
@@ -65,7 +66,7 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
           setLinkingURI(fallbackUri)
           setIsLoading(false)
           setStatusMessage('Demo QR code ready (for demonstration purposes only)')
-          setErrorMessage('Note: This is a demo. Real Signal server connections are not supported in web browsers.')
+          setInfoMessage('Note: This is a demo. Real Signal server connections are not supported in web browsers.')
         }
         
       } catch (error) {
@@ -122,6 +123,7 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
         <div className={`status-message ${errorMessage ? 'error' : ''}`}>
           <p>{statusMessage}</p>
           {errorMessage && <p className="error-details">{errorMessage}</p>}
+          {infoMessage && <p className="info-details">{infoMessage}</p>}
         </div>
         
         <div className="qr-section">
@@ -169,7 +171,7 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
         <div className="footer">
           <p>
             This is a demo implementation. Real Signal server connections are not supported in web browsers.
-            {errorMessage && ' Click "Demo Login" below to explore the interface.'}
+            {infoMessage && ' Click "Demo Login" below to explore the interface.'}
           </p>
         </div>
       </div>
