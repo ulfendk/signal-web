@@ -17,13 +17,17 @@ export async function generateLinkingURI(): Promise<string> {
   // 1. Generate a unique device ID
   // 2. Create a provisioning UUID
   // 3. Establish a WebSocket connection to Signal servers
-  // 4. Return a URI in the format: tsdevice:/?uuid=xxx&pub_key=yyy
+  // 4. Return a URI in the format: sgnl://linkdevice?uuid=xxx&pub_key=yyy&capabilities=
   
   const uuid = generateUUID()
   const publicKey = generatePublicKey()
   
-  // Signal Desktop linking URI format
-  const linkingURI = `tsdevice:/?uuid=${uuid}&pub_key=${publicKey}`
+  // URL-encode the parameters (especially important for base64 values with special chars)
+  const encodedUuid = encodeURIComponent(uuid)
+  const encodedPublicKey = encodeURIComponent(publicKey)
+  
+  // Signal linking URI format
+  const linkingURI = `sgnl://linkdevice?uuid=${encodedUuid}&pub_key=${encodedPublicKey}&capabilities=`
   
   return linkingURI
 }
