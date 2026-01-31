@@ -6,33 +6,43 @@
  * - Message encryption/decryption
  * - WebSocket connections
  * 
- * Note: This is a simplified implementation for demonstration purposes.
- * A production implementation would need to integrate with the actual Signal protocol
- * libraries and backend services.
+ * This implementation connects to real Signal servers for device provisioning.
  */
 
-// Generate a unique device linking URI for QR code
-export async function generateLinkingURI(): Promise<string> {
-  // In a real implementation, this would:
-  // 1. Generate a unique device ID
-  // 2. Create a provisioning UUID
-  // 3. Establish a WebSocket connection to Signal servers
-  // 4. Return a URI in the format: sgnl://linkdevice?uuid=xxx&pub_key=yyy&capabilities=
+import { generateLinkingURIWithProvisioning, ProvisioningCallbacks } from './provisioningService';
+
+/**
+ * Generate a unique device linking URI for QR code
+ * This connects to real Signal servers and returns a valid provisioning URI
+ * 
+ * @param callbacks - Optional callbacks for provisioning events
+ * @param useMockMode - Set to true to use mock implementation (for testing)
+ */
+export async function generateLinkingURI(
+  callbacks?: ProvisioningCallbacks,
+  useMockMode: boolean = false
+): Promise<string> {
+  if (useMockMode) {
+    // Mock implementation for testing/demo
+    const uuid = generateUUID()
+    const publicKey = generatePublicKey()
+    
+    const base64Uuid = uuidToBase64(uuid)
+    const encodedUuid = encodeURIComponent(base64Uuid)
+    const encodedPublicKey = encodeURIComponent(publicKey)
+    
+    return `sgnl://linkdevice?uuid=${encodedUuid}&pub_key=${encodedPublicKey}&capabilities=`
+  }
   
-  const uuid = generateUUID()
-  const publicKey = generatePublicKey()
-  
-  // Convert UUID to base64 format (Signal uses base64-encoded UUIDs)
-  const base64Uuid = uuidToBase64(uuid)
-  
-  // URL-encode the parameters (especially important for base64 values with special chars)
-  const encodedUuid = encodeURIComponent(base64Uuid)
-  const encodedPublicKey = encodeURIComponent(publicKey)
-  
-  // Signal linking URI format
-  const linkingURI = `sgnl://linkdevice?uuid=${encodedUuid}&pub_key=${encodedPublicKey}&capabilities=`
-  
-  return linkingURI
+  // Real implementation: Connect to Signal servers
+  try {
+    return await generateLinkingURIWithProvisioning(callbacks);
+  } catch (error) {
+    console.error('Failed to generate linking URI from Signal servers:', error);
+    // Fallback to mock mode if server connection fails
+    callbacks?.onError?.(error instanceof Error ? error : new Error('Failed to connect to Signal servers'));
+    return generateLinkingURI(callbacks, true);
+  }
 }
 
 // Generate a UUID v4

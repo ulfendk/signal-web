@@ -1,9 +1,27 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { Buffer } from 'buffer'
 
 export default defineConfig({
   base: '/signal-web/',
+  define: {
+    global: 'globalThis',
+    'process.env': {},
+    Buffer: Buffer
+  },
+  resolve: {
+    alias: {
+      buffer: 'buffer'
+    }
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: 'globalThis'
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({

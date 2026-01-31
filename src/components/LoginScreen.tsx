@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import './LoginScreen.css'
 import { generateLinkingURI } from '../services/signalService'
+import { ProvisioningService } from '../services/provisioningService'
 
 interface LoginScreenProps {
   onLogin: () => void
@@ -10,26 +11,88 @@ interface LoginScreenProps {
 function LoginScreen({ onLogin }: LoginScreenProps) {
   const [linkingURI, setLinkingURI] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
+  const [statusMessage, setStatusMessage] = useState<string>('Initializing...')
+  const [errorMessage, setErrorMessage] = useState<string>('')
+  const [isProvisioned, setIsProvisioned] = useState(false)
 
   useEffect(() => {
-    // Generate a unique linking URI for QR code
+    // Check if already provisioned
+    if (ProvisioningService.isProvisioned()) {
+      setIsProvisioned(true)
+      setStatusMessage('Device already linked!')
+      setIsLoading(false)
+      return
+    }
+
+    // Generate a unique linking URI for QR code with real Signal server connection
     const generateQRCode = async () => {
       try {
-        const uri = await generateLinkingURI()
-        setLinkingURI(uri)
-        setIsLoading(false)
+        setStatusMessage('Connecting to Signal servers...')
+        
+        // Use the real implementation that connects to Signal servers
+        const uri = await generateLinkingURI({
+          onProgress: (message) => {
+            console.log('[Provisioning]', message)
+            setStatusMessage(message)
+          },
+          onQRCode: (uri) => {
+            console.log('[QR Code Ready]', uri)
+            setLinkingURI(uri)
+            setIsLoading(false)
+            setStatusMessage('QR code ready - scan with your Signal mobile app')
+          },
+          onSuccess: (credentials) => {
+            console.log('[Provisioning Success]', credentials)
+            setStatusMessage(`Device successfully linked! Device ID: ${credentials.deviceId}`)
+            setIsProvisioned(true)
+            // Auto-login after successful provisioning
+            setTimeout(() => onLogin(), 2000)
+          },
+          onError: (error) => {
+            console.error('[Provisioning Error]', error)
+            setErrorMessage(error.message)
+            setStatusMessage('Failed to connect to Signal servers')
+            setIsLoading(false)
+          }
+        }, false) // false = use real implementation, not mock
+        
+        // Initial URI is set via onQRCode callback
+        if (!uri) {
+          throw new Error('No URI returned from provisioning')
+        }
+        
       } catch (error) {
         console.error('Failed to generate linking URI:', error)
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+        setErrorMessage(errorMsg)
+        setStatusMessage('Connection failed - using fallback mode')
         setIsLoading(false)
+        
+        // Fallback to mock mode if real connection fails
+        try {
+          const fallbackUri = await generateLinkingURI(undefined, true)
+          setLinkingURI(fallbackUri)
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError)
+        }
       }
     }
 
     generateQRCode()
-  }, [])
+  }, [onLogin])
 
-  // Simulate QR code scan authentication
+  // Simulate QR code scan authentication (for testing)
   const handleDemoLogin = () => {
     onLogin()
+  }
+
+  // Unlink device
+  const handleUnlink = () => {
+    if (confirm('Are you sure you want to unlink this device?')) {
+      ProvisioningService.clearCredentials()
+      setIsProvisioned(false)
+      setStatusMessage('Device unlinked. Refresh to start over.')
+    }
   }
 
   return (
@@ -43,13 +106,29 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
         </div>
         
         <h1>Signal Web Client</h1>
-        <p className="subtitle">Link this device to your Signal account</p>
+        <p className="subtitle">
+          {isProvisioned ? 'Device Linked' : 'Link this device to your Signal account'}
+        </p>
+        
+        {/* Status message */}
+        <div className={`status-message ${errorMessage ? 'error' : ''}`}>
+          <p>{statusMessage}</p>
+          {errorMessage && <p className="error-details">{errorMessage}</p>}
+        </div>
         
         <div className="qr-section">
-          {isLoading ? (
+          {isProvisioned ? (
+            <div className="qr-placeholder success">
+              <div className="success-icon">✓</div>
+              <p>Device successfully linked!</p>
+              <button className="unlink-btn" onClick={handleUnlink}>
+                Unlink Device
+              </button>
+            </div>
+          ) : isLoading ? (
             <div className="qr-placeholder">
               <div className="spinner"></div>
-              <p>Generating QR code...</p>
+              <p>Connecting to Signal servers...</p>
             </div>
           ) : linkingURI ? (
             <div className="qr-container">
@@ -58,26 +137,32 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
           ) : (
             <div className="qr-placeholder">
               <p>Failed to generate QR code</p>
+              <button onClick={() => window.location.reload()}>Retry</button>
             </div>
           )}
         </div>
         
-        <div className="instructions">
-          <h3>How to link your device:</h3>
-          <ol>
-            <li>Open Signal on your phone</li>
-            <li>Tap Settings → Linked Devices</li>
-            <li>Tap the + button (iPhone) or Link New Device (Android)</li>
-            <li>Scan this QR code with your phone</li>
-          </ol>
-        </div>
+        {!isProvisioned && (
+          <div className="instructions">
+            <h3>How to link your device:</h3>
+            <ol>
+              <li>Open Signal on your phone</li>
+              <li>Tap Settings → Linked Devices</li>
+              <li>Tap the + button (iPhone) or Link New Device (Android)</li>
+              <li>Scan this QR code with your phone</li>
+            </ol>
+          </div>
+        )}
 
         <button className="demo-login-btn" onClick={handleDemoLogin}>
           Demo Login (Development)
         </button>
         
         <div className="footer">
-          <p>This is a web implementation of Signal. Messages are end-to-end encrypted.</p>
+          <p>
+            This implementation connects to real Signal servers for device linking.
+            {errorMessage && ' (Currently in fallback mode)'}
+          </p>
         </div>
       </div>
     </div>
