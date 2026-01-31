@@ -59,13 +59,8 @@ export default defineConfig({
   server: {
     port: 3000
   },
-  resolve: {
-    alias: {
-      // Help Vite resolve libsignal-client's native modules
-      './Native.js': '@signalapp/libsignal-client/dist/Native.js'
-    }
-  },
   optimizeDeps: {
+    // Exclude libsignal-client from pre-bundling to ensure native modules load correctly
     exclude: ['@signalapp/libsignal-client']
   }
 })
