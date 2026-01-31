@@ -41,7 +41,7 @@ function generateUUID(): string {
 function generatePublicKey(): string {
   const array = new Uint8Array(32)
   crypto.getRandomValues(array)
-  return btoa(String.fromCharCode.apply(null, Array.from(array)))
+  return btoa(String.fromCharCode(...Array.from(array)))
 }
 
 // WebSocket connection for real-time messages
