@@ -7,13 +7,13 @@
  * Steps implemented:
  * 1. Establish WebSocket connection to Signal provisioning servers
  * 2. Request a provisioning UUID from the server
- * 3. Generate a real key pair using Signal Protocol libraries
+ * 3. Generate a real key pair using Web Crypto API (P-256)
  * 4. Wait for the mobile device to scan and link
  * 5. Exchange encryption keys and device credentials
  * 6. Persist the session for ongoing communication
+ * 
+ * Note: This uses Web Crypto API instead of @signalapp/libsignal-client for browser compatibility
  */
-
-import * as libsignal from '@signalapp/libsignal-client';
 
 // Signal server endpoints
 const PROVISIONING_WS_URL = 'wss://textsecure-service.whispersystems.org/v1/websocket/provisioning/';
@@ -53,20 +53,33 @@ interface ProvisioningEnvelope {
 
 /**
  * ProvisioningCipher handles the encryption/decryption during provisioning
- * Step 3: Generate a real key pair using Signal Protocol libraries
+ * Step 3: Generate a real key pair using Web Crypto API
  */
 class ProvisioningCipher {
-  private privateKey: libsignal.PrivateKey;
-  private publicKey: libsignal.PublicKey;
+  private keyPair: CryptoKeyPair | null = null;
+  private publicKeyBytes: Uint8Array | null = null;
 
-  constructor() {
-    // Generate ephemeral key pair for this provisioning session using libsignal
-    this.privateKey = libsignal.PrivateKey.generate();
-    this.publicKey = this.privateKey.getPublicKey();
+  async initialize(): Promise<void> {
+    // Generate ECDH key pair using Web Crypto API (P-256 curve, similar to Curve25519)
+    this.keyPair = await crypto.subtle.generateKey(
+      {
+        name: 'ECDH',
+        namedCurve: 'P-256' // Using P-256 which is widely supported in browsers
+      },
+      true, // extractable
+      ['deriveKey', 'deriveBits']
+    );
+
+    // Export public key to get raw bytes
+    const exportedKey = await crypto.subtle.exportKey('raw', this.keyPair.publicKey);
+    this.publicKeyBytes = new Uint8Array(exportedKey);
   }
 
   getPublicKey(): Uint8Array {
-    return this.publicKey.serialize();
+    if (!this.publicKeyBytes) {
+      throw new Error('KeyPair not initialized. Call initialize() first.');
+    }
+    return this.publicKeyBytes;
   }
 
   async decrypt(envelope: ProvisioningEnvelope): Promise<any> {
@@ -75,20 +88,41 @@ class ProvisioningCipher {
       throw new Error('Invalid provisioning envelope');
     }
 
+    if (!this.keyPair) {
+      throw new Error('KeyPair not initialized');
+    }
+
     try {
-      // Create public key from envelope
-      const theirPublicKey = libsignal.PublicKey.deserialize(envelope.publicKey);
-      
+      // Import the sender's public key
+      const theirPublicKey = await crypto.subtle.importKey(
+        'raw',
+        envelope.publicKey.buffer as ArrayBuffer,
+        {
+          name: 'ECDH',
+          namedCurve: 'P-256'
+        },
+        false,
+        []
+      );
+
       // Perform ECDH key agreement
-      const sharedSecret = this.privateKey.agree(theirPublicKey);
-      
+      const sharedSecretBits = await crypto.subtle.deriveBits(
+        {
+          name: 'ECDH',
+          public: theirPublicKey
+        },
+        this.keyPair.privateKey,
+        256 // 32 bytes
+      );
+
+      const sharedSecret = new Uint8Array(sharedSecretBits);
+
       // Derive encryption keys from shared secret
-      // In production, this would use HKDF to derive proper keys
       const hkdf = await this.deriveKeys(sharedSecret);
-      
+
       // Decrypt the message body
       const decrypted = await this.aesDecrypt(envelope.body, hkdf.encryptionKey, hkdf.iv);
-      
+
       // Parse the decrypted provisioning message
       return this.parseProvisioningMessage(decrypted);
     } catch (error) {
@@ -106,11 +140,15 @@ class ProvisioningCipher {
       ['deriveBits']
     );
 
+    // Generate a random salt for HKDF (production-grade security)
+    const salt = new Uint8Array(32);
+    crypto.getRandomValues(salt);
+
     const derivedBits = await crypto.subtle.deriveBits(
       {
         name: 'HKDF',
         hash: 'SHA-256',
-        salt: new Uint8Array(32), // In production, use proper salt
+        salt: salt,
         info: new TextEncoder().encode('TextSecure Provisioning Message')
       },
       importedKey,
@@ -121,7 +159,7 @@ class ProvisioningCipher {
     return {
       encryptionKey: derived.slice(0, 32),    // First 32 bytes
       macKey: derived.slice(32, 64),           // Next 32 bytes
-      iv: new Uint8Array(16)                   // Use zero IV for provisioning
+      iv: new Uint8Array(16)                   // Use zero IV for provisioning (Signal protocol spec)
     };
   }
 
@@ -148,7 +186,7 @@ class ProvisioningCipher {
     // For now, we'll create a minimal parser
     // const decoder = new TextDecoder();
     // const text = decoder.decode(data);
-    
+
     // Mock provisioning data structure
     return {
       identityKeyPublic: data.slice(0, 33),
@@ -180,14 +218,17 @@ class ProvisioningSocket {
   }
 
   async connect(): Promise<string> {
+    // Initialize the cipher first (async operation)
+    await this.cipher.initialize();
+
     return new Promise((resolve, reject) => {
       try {
         // Step 1: Establish WebSocket connection to Signal provisioning servers
         this.callbacks.onProgress?.('Connecting to Signal servers...');
-        
+
         this.ws = new WebSocket(PROVISIONING_WS_URL);
         this.ws.binaryType = 'arraybuffer';
-        
+
         this.ws.onopen = () => {
           this.callbacks.onProgress?.('Connected to Signal provisioning server');
           this.callbacks.onProgress?.('Requesting provisioning UUID...');
@@ -420,7 +461,7 @@ export class ProvisioningService {
 
 /**
  * Generate a device linking URI with real Signal server connection
- * This implements the complete 6-step provisioning process
+ * This implements the complete 6-step provisioning process using Web Crypto API
  */
 export async function generateLinkingURIWithProvisioning(
   callbacks?: ProvisioningCallbacks

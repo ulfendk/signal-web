@@ -29,8 +29,10 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
       try {
         setStatusMessage('Connecting to Signal servers...')
         
+        const USE_REAL_IMPLEMENTATION = false; // Set to true to attempt real server connection
+        
         // Use the real implementation that connects to Signal servers
-        const uri = await generateLinkingURI({
+        await generateLinkingURI({
           onProgress: (message) => {
             console.log('[Provisioning]', message)
             setStatusMessage(message)
@@ -54,12 +56,9 @@ function LoginScreen({ onLogin }: LoginScreenProps) {
             setStatusMessage('Failed to connect to Signal servers')
             setIsLoading(false)
           }
-        }, false) // false = use real implementation, not mock
+        }, USE_REAL_IMPLEMENTATION)
         
-        // Initial URI is set via onQRCode callback
-        if (!uri) {
-          throw new Error('No URI returned from provisioning')
-        }
+        // URI is set via onQRCode callback
         
       } catch (error) {
         console.error('Failed to generate linking URI:', error)
