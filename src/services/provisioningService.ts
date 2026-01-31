@@ -222,6 +222,10 @@ class ProvisioningSocket {
     await this.cipher.initialize();
 
     return new Promise((resolve, reject) => {
+      // Add a timeout to prevent hanging forever
+      const CONNECTION_TIMEOUT = 5000; // 5 seconds
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      
       try {
         // Step 1: Establish WebSocket connection to Signal provisioning servers
         this.callbacks.onProgress?.('Connecting to Signal servers...');
@@ -229,7 +233,21 @@ class ProvisioningSocket {
         this.ws = new WebSocket(PROVISIONING_WS_URL);
         this.ws.binaryType = 'arraybuffer';
 
+        // Set connection timeout
+        timeoutId = setTimeout(() => {
+          if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
+            const err = new Error('Connection timeout - Signal servers not responding. Using demo mode.');
+            this.callbacks.onError?.(err);
+            this.disconnect();
+            reject(err);
+          }
+        }, CONNECTION_TIMEOUT);
+
         this.ws.onopen = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
           this.callbacks.onProgress?.('Connected to Signal provisioning server');
           this.callbacks.onProgress?.('Requesting provisioning UUID...');
         };
@@ -243,12 +261,20 @@ class ProvisioningSocket {
         };
 
         this.ws.onerror = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
           const err = new Error('WebSocket connection failed - unable to reach Signal servers');
           this.callbacks.onError?.(err);
           reject(err);
         };
 
         this.ws.onclose = (event) => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
           if (event.code !== 1000) {
             const err = new Error(`Connection closed unexpectedly (code: ${event.code})`);
             this.callbacks.onError?.(err);
@@ -257,6 +283,10 @@ class ProvisioningSocket {
         };
 
       } catch (error) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         const err = error instanceof Error ? error : new Error('Failed to connect');
         this.callbacks.onError?.(err);
         reject(err);
