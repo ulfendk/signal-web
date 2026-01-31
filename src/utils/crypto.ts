@@ -124,21 +124,23 @@ export async function hkdf(
  * Simple wrapper class for private keys
  */
 export class PrivateKey {
-  constructor(private key: CryptoKey) {}
+  constructor(private key: CryptoKey, private associatedPublicKey?: PublicKey) {}
 
   static async generate(): Promise<PrivateKey> {
     const keyPair = await generateKeyPair();
-    return new PrivateKey(keyPair.privateKey);
+    const publicKey = new PublicKey(keyPair.publicKey);
+    return new PrivateKey(keyPair.privateKey, publicKey);
   }
 
   getPublicKey(): PublicKey {
-    // Note: In a real implementation, we'd need to store the public key separately
-    // For now, this is a placeholder that will work with the mock implementation
-    throw new Error('getPublicKey() requires the public key to be stored separately');
+    if (!this.associatedPublicKey) {
+      throw new Error('Public key not available. Use generateKeyPairWrapper() to generate keys with both public and private keys.');
+    }
+    return this.associatedPublicKey;
   }
 
   async agree(publicKey: PublicKey): Promise<Uint8Array> {
-    return await deriveSharedSecret(this.key, publicKey.key);
+    return await deriveSharedSecret(this.key, publicKey.getCryptoKey());
   }
 
   async serialize(): Promise<Uint8Array> {
@@ -154,7 +156,7 @@ export class PrivateKey {
  * Simple wrapper class for public keys
  */
 export class PublicKey {
-  constructor(public key: CryptoKey) {}
+  constructor(private key: CryptoKey) {}
 
   static async deserialize(keyBytes: Uint8Array): Promise<PublicKey> {
     const key = await importPublicKey(keyBytes);
@@ -164,6 +166,10 @@ export class PublicKey {
   async serialize(): Promise<Uint8Array> {
     return await exportPublicKey(this.key);
   }
+
+  getCryptoKey(): CryptoKey {
+    return this.key;
+  }
 }
 
 /**
@@ -171,8 +177,10 @@ export class PublicKey {
  */
 export async function generateKeyPairWrapper(): Promise<{ privateKey: PrivateKey; publicKey: PublicKey }> {
   const keyPair = await generateKeyPair();
+  const publicKey = new PublicKey(keyPair.publicKey);
+  const privateKey = new PrivateKey(keyPair.privateKey, publicKey);
   return {
-    privateKey: new PrivateKey(keyPair.privateKey),
-    publicKey: new PublicKey(keyPair.publicKey),
+    privateKey,
+    publicKey,
   };
 }
